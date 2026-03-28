@@ -3,261 +3,258 @@ require('dotenv').config();
 const { App } = require('@slack/bolt');
 const OpenAI = require('openai');
 
-console.log('OPENAI KEY:', process.env.OPENAI_API_KEY ? 'OK' : 'ABSENTE');
+// =========================
+// Vérification des variables
+// =========================
+const requiredEnv = ['SLACK_BOT_TOKEN', 'SLACK_APP_TOKEN', 'OPENAI_API_KEY'];
+const missingEnv = requiredEnv.filter((key) => !process.env[key]);
 
+if (missingEnv.length > 0) {
+  console.error('❌ Variables manquantes :', missingEnv.join(', '));
+  process.exit(1);
+}
+
+console.log('✅ OPENAI_API_KEY:', process.env.OPENAI_API_KEY ? 'OK' : 'ABSENTE');
+console.log('✅ SLACK_BOT_TOKEN:', process.env.SLACK_BOT_TOKEN ? 'OK' : 'ABSENT');
+console.log('✅ SLACK_APP_TOKEN:', process.env.SLACK_APP_TOKEN ? 'OK' : 'ABSENT');
+
+// =========================
+// Initialisation OpenAI
+// =========================
 const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
+  apiKey: process.env.OPENAI_API_KEY,
 });
 
-const systemPrompt = `
-Tu es le directeur stratégique interne de ZKLWN.
+// =========================
+// Identité ZKLWN AI
+// =========================
+const SYSTEM_PROMPT = `
+Tu es ZKLWN AI.
 
-Tu ne fonctionnes pas comme un assistant générique.
-Tu fonctionnes comme un décideur exigeant.
+Tu n’es pas un simple assistant.
+Tu es un bras droit stratégique et opérationnel pour la marque ZKLWN.
 
 MISSION :
-Aider ZKLWN à prendre de meilleures décisions produit, image, communication et stratégie
-pour rivaliser avec les grandes marques premium.
+Aider à construire une marque premium forte, cohérente, rentable et différenciante dans l’univers de la puériculture.
 
+IDENTITÉ DE MARQUE :
+ZKLWN repose sur :
+- l’héritage
+- la transmission intergénérationnelle
+- l’émotion parent-enfant
+- l’astronomie
+- l’exigence premium
+- la cohérence entre design, image, perception et valeur
 
-COMPORTEMENT OBLIGATOIRE :
-- Honnête : tu ne valides jamais une idée faible juste pour être agréable
-- Impartial : tu compares sans biais
-- Exigeant : tu refuses le niveau moyen
-- Direct : tu vas droit au point clé
-- Utile : chaque réponse doit être exploitable immédiatement
-- Stratégique : tu raisonnes en avantage concurrentiel réel
+TON :
+- premium
+- direct
+- clair
+- intelligent
+- jamais arrogant
+- jamais robotique
+- jamais condescendant
 
-INTERDIT :
-- Réponses génériques
-- Listes vagues applicables à n’importe quelle marque
-- Blabla inutile
-- Réponses tièdes ou diplomatiques quand une idée est faible
+RÈGLES :
+- pas de blabla inutile
+- pas de marketing creux
+- pas de réponses génériques
+- pas de réponses copiables-collables pour n’importe quelle marque
+- toujours concret
+- toujours utile
+- toujours orienté décision, perception, cohérence marque et avantage concurrentiel réel
 
-OBLIGATION :
-Tu dois toujours :
-1. Prendre position
-2. Identifier la vraie priorité
-3. Dire ce qui est secondaire
-4. Expliquer ce qu’il faut faire concrètement
-5. Dire ce qu’il faut éviter
+COMPORTEMENT ADAPTATIF :
+1. Si la question est simple ou humaine, réponds simplement et naturellement.
+2. Si la question est stratégique, structure ta réponse ainsi :
+   - Décision
+   - Pourquoi
+   - Plan d’action court
+   - Point de vigilance
+3. Si la question est produit ou technique, sois précis sans complexifier inutilement.
+4. Si une idée est faible, tu le dis clairement.
+5. Si une idée est forte, tu expliques pourquoi elle crée un avantage réel.
 
-STRUCTURE DE RÉPONSE À PRIVILÉGIER :
-1. Lecture rapide
-2. Analyse stratégique
-3. Recommandation principale
-4. Plan d’action concret
-5. Point de vigilance
+POSITIONNEMENT :
+ZKLWN n’est pas seulement une marque produit.
+C’est une marque de transmission.
+Chaque produit doit être pensé comme un objet qui traverse le temps et les générations.
 
-PRINCIPE CLÉ :
-Si la réponse peut être copiée-collée pour une autre marque, alors elle est mauvaise.
+CONCURRENCE :
+Quand c’est pertinent, pense à la différenciation face à Cybex, Bugaboo, Stokke et autres marques premium.
 
 OBJECTIF FINAL :
-Donner à ZKLWN un avantage réel, pas juste une réponse propre.
+Aider ZKLWN à prendre de meilleures décisions produit, image, communication, branding et stratégie commerciale.
 `;
 
-const zklwnContext = `
-ZKLWN est une marque premium de puériculture avec une vision forte.
+const ZKLWN_CONTEXT = `
+Contexte ZKLWN :
 
-IDENTITÉ :
-- Univers : astronomie, héritage, transmission
-- Positionnement : émotion + design + durabilité
-- Produit pensé comme un héritage, pas seulement un objet fonctionnel
-- Ambition : concurrencer Cybex, Bugaboo, Stokke
-
-DIFFÉRENCIATION RECHERCHÉE :
-- éviter une image trop froide ou purement technique
-- construire une identité émotionnelle forte
-- renforcer la valeur perçue premium
-- faire de la marque un univers cohérent
-
-PRODUITS :
-- Orion Titanium : flagship haut de gamme
-- Helix 360 : innovation rotation
-- Sirius : polyvalence
-- Altahyr : compact urbain
-
-CONTRAINTES :
-- production en Chine
-- exigence premium non négociable
-- cohérence marque obligatoire
-- image plus importante que solutions cheap
-
-RÈGLE DE FOND :
-Quand tu analyses une question pour ZKLWN, pense toujours en :
-- image de marque
-- différenciation réelle
-- valeur perçue
-- cohérence premium
-- expérience client
+- Univers : astronomie, héritage, transmission, émotion
+- Positionnement : premium, émotion + design + durabilité
+- Ambition : concurrencer les grandes marques premium de puériculture
+- Marque pensée comme un univers cohérent, pas comme une simple gamme produit
+- Exigence premium non négociable
+- Image de marque, perception et cohérence visuelle essentielles
+- Les réponses doivent être utiles à une vraie prise de décision
 `;
 
-console.log('DÉMARRAGE...');
+// =========================
+// Helpers
+// =========================
+function cleanText(text = '') {
+  return text.replace(/\s+/g, ' ').trim();
+}
 
+function removeBotMention(text = '') {
+  return cleanText(text.replace(/<@[^>]+>/g, ''));
+}
+
+function isSimpleGreeting(text = '') {
+  const t = text.toLowerCase().trim();
+  const greetings = [
+    'bonjour',
+    'salut',
+    'hello',
+    'ça va',
+    'ca va',
+    'comment ça va',
+    'comment ca va',
+    'yo',
+    'cc',
+    'coucou',
+    'test',
+  ];
+  return greetings.includes(t);
+}
+
+async function generateZklwnReply(userText) {
+  const cleaned = cleanText(userText);
+
+  const userInstruction = isSimpleGreeting(cleaned)
+    ? `Réponds simplement, humainement et brièvement à ce message : "${cleaned}"`
+    : cleaned;
+
+  const response = await openai.responses.create({
+    model: 'gpt-4.1',
+    input: [
+      {
+        role: 'system',
+        content: `${SYSTEM_PROMPT}\n\n${ZKLWN_CONTEXT}`,
+      },
+      {
+        role: 'user',
+        content: userInstruction,
+      },
+    ],
+    max_output_tokens: 1200,
+  });
+
+  return response.output_text?.trim() || "Je n’ai pas pu générer de réponse exploitable.";
+}
+
+async function postErrorMessage(client, channel, thread_ts = null, error = null) {
+  console.error('❌ ERREUR:', error);
+
+  let text = "⚠️ Une erreur est survenue pendant le traitement.";
+
+  if (error?.status === 401) {
+    text = "⚠️ Le bot est actif, mais la clé OpenAI est invalide ou non reconnue.";
+  } else if (error?.status === 429) {
+    text = "⚠️ Le bot est actif, mais le quota OpenAI semble atteint ou la facturation doit être vérifiée.";
+  }
+
+  await client.chat.postMessage({
+    channel,
+    ...(thread_ts ? { thread_ts } : {}),
+    text,
+  });
+}
+
+// =========================
+// Initialisation Slack Bolt
+// =========================
 const app = new App({
   token: process.env.SLACK_BOT_TOKEN,
   appToken: process.env.SLACK_APP_TOKEN,
-  socketMode: true
+  socketMode: true,
 });
 
+// =========================
+// Slash command : /zklwn
+// =========================
 app.command('/zklwn', async ({ command, ack, client }) => {
   await ack({
     response_type: 'ephemeral',
-    text: '⏳ Je réfléchis...'
+    text: '⏳ Je réfléchis...',
   });
 
-  if (!command.text || command.text.trim().length < 3) {
+  const question = cleanText(command.text);
+
+  if (!question) {
     await client.chat.postMessage({
       channel: command.channel_id,
-      text: '🧠 ZKLWN Assistant\n\nMerci de préciser ta demande.'
+      text: "🧠 ZKLWN AI\n\nMerci de préciser ta demande.",
     });
     return;
   }
 
-  console.log('QUESTION:', command.text);
+  console.log('📩 SLASH QUESTION:', question);
 
   try {
-    const response = await openai.responses.create({
-      model: 'gpt-4o',
-      input: [
-        {
-          role: 'system',
-          content: systemPrompt
-        },
-        {
-          role: 'system',
-          content: zklwnContext
-        },
-        {
-          role: 'user',
-          content: `
-Tu es en réunion avec le fondateur.
-
-Tu n’as pas le droit de donner plusieurs options.
-Tu dois prendre UNE décision stratégique claire.
-
-Interdictions :
-- pas de liste de 5 idées
-- pas de “plusieurs axes”
-- pas de réponse générique
-- pas de réponse applicable à n’importe quelle marque
-
-Obligations :
-- commence directement par ta décision
-- ensuite explique pourquoi
-- ensuite donne un plan d’action court
-- si nécessaire, critique la logique de départ
-
-Question :
-${command.text}
-`
-        }
-      ],
-      max_output_tokens: 1200
-    });
-
-    const reply =
-      response.output_text ||
-      "Je n’ai pas pu générer de réponse exploitable.";
+    const reply = await generateZklwnReply(question);
 
     await client.chat.postMessage({
       channel: command.channel_id,
-      text: `🧠 ZKLWN Assistant\n\n${reply}`
+      text: `🧠 ZKLWN AI\n\n${reply}`,
     });
   } catch (error) {
-    console.error('ERREUR OPENAI:', error);
-
-    let errorMessage =
-      "⚠️ Une erreur est survenue pendant le traitement.";
-
-    if (error?.status === 429) {
-      errorMessage =
-        "⚠️ Le bot est actif, mais le quota OpenAI API est atteint ou la facturation doit être vérifiée.";
-    } else if (error?.status === 401) {
-      errorMessage =
-        "⚠️ Le bot est actif, mais la clé API OpenAI est invalide ou non reconnue.";
-    }
-
-    await client.chat.postMessage({
-      channel: command.channel_id,
-      text: errorMessage
-    });
+    await postErrorMessage(client, command.channel_id, null, error);
   }
 });
 
-(async () => {
-  await app.start();
-  console.log('Bot Slack avec IA lancé.');
-})();
+// =========================
+// @mention dans les canaux
+// =========================
 app.event('app_mention', async ({ event, client }) => {
   try {
-    const userMessage = event.text.replace(/<@[^>]+>/, '').trim();
+    if (event.bot_id || event.subtype) return;
 
-    if (!userMessage) {
+    const question = removeBotMention(event.text);
+
+    if (!question) {
       await client.chat.postMessage({
         channel: event.channel,
-        text: "🧠 ZKLWN Assistant\n\nMerci de préciser ta demande."
+        thread_ts: event.ts,
+        text: "🧠 ZKLWN AI\n\nMerci de préciser ta demande.",
       });
       return;
     }
 
-    console.log('MENTION QUESTION:', userMessage);
+    console.log('📩 MENTION QUESTION:', question);
 
-    const response = await openai.responses.create({
-      model: 'gpt-4o',
-      input: [
-        {
-          role: 'system',
-          content: systemPrompt
-        },
-        {
-          role: 'system',
-          content: zklwnContext
-        },
-        {
-          role: 'user',
-          content: `
-Tu es en réunion avec le fondateur.
-
-Tu n’as pas le droit de donner plusieurs options.
-Tu dois prendre UNE décision stratégique claire.
-
-Interdictions :
-- pas de liste de 5 idées
-- pas de “plusieurs axes”
-- pas de réponse générique
-- pas de réponse applicable à n’importe quelle marque
-
-Obligations :
-- commence directement par ta décision
-- ensuite explique pourquoi
-- ensuite donne un plan d’action court
-- si nécessaire, critique la logique de départ
-
-Question :
-${userMessage}
-`
-        }
-      ],
-      max_output_tokens: 1200
-    });
-
-    const reply =
-      response.output_text ||
-      "Je n’ai pas pu générer de réponse exploitable.";
+    const reply = await generateZklwnReply(question);
 
     await client.chat.postMessage({
       channel: event.channel,
       thread_ts: event.ts,
-      text: `🧠 ZKLWN Assistant\n\n${reply}`
+      text: `🧠 ZKLWN AI\n\n${reply}`,
     });
   } catch (error) {
-    console.error('ERREUR MENTION OPENAI:', error);
-
-    await client.chat.postMessage({
-      channel: event.channel,
-      thread_ts: event.ts,
-      text: "⚠️ Une erreur est survenue pendant le traitement."
-    });
+    await postErrorMessage(client, event.channel, event.ts, error);
   }
 });
+
+// =========================
+// Démarrage
+// =========================
+(async () => {
+  try {
+    console.log('🚀 DÉMARRAGE...');
+    await app.start();
+    console.log('✅ Bot Slack ZKLWN AI lancé.');
+  } catch (error) {
+    console.error('❌ ÉCHEC AU DÉMARRAGE:', error);
+    process.exit(1);
+  }
+})();
