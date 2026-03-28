@@ -189,3 +189,75 @@ ${command.text}
   await app.start();
   console.log('Bot Slack avec IA lancé.');
 })();
+app.event('app_mention', async ({ event, client }) => {
+  try {
+    const userMessage = event.text.replace(/<@[^>]+>/, '').trim();
+
+    if (!userMessage) {
+      await client.chat.postMessage({
+        channel: event.channel,
+        text: "🧠 ZKLWN Assistant\n\nMerci de préciser ta demande."
+      });
+      return;
+    }
+
+    console.log('MENTION QUESTION:', userMessage);
+
+    const response = await openai.responses.create({
+      model: 'gpt-4o',
+      input: [
+        {
+          role: 'system',
+          content: systemPrompt
+        },
+        {
+          role: 'system',
+          content: zklwnContext
+        },
+        {
+          role: 'user',
+          content: `
+Tu es en réunion avec le fondateur.
+
+Tu n’as pas le droit de donner plusieurs options.
+Tu dois prendre UNE décision stratégique claire.
+
+Interdictions :
+- pas de liste de 5 idées
+- pas de “plusieurs axes”
+- pas de réponse générique
+- pas de réponse applicable à n’importe quelle marque
+
+Obligations :
+- commence directement par ta décision
+- ensuite explique pourquoi
+- ensuite donne un plan d’action court
+- si nécessaire, critique la logique de départ
+
+Question :
+${userMessage}
+`
+        }
+      ],
+      max_output_tokens: 1200
+    });
+
+    const reply =
+      response.output_text ||
+      "Je n’ai pas pu générer de réponse exploitable.";
+
+    await client.chat.postMessage({
+      channel: event.channel,
+      thread_ts: event.ts,
+      text: `🧠 ZKLWN Assistant\n\n${reply}`
+    });
+  } catch (error) {
+    console.error('ERREUR MENTION OPENAI:', error);
+
+    await client.chat.postMessage({
+      channel: event.channel,
+      thread_ts: event.ts,
+      text: "⚠️ Une erreur est survenue pendant le traitement."
+    });
+  }
+});
