@@ -147,7 +147,7 @@ async function generateZklwnReply(userText) {
         content: userInstruction,
       },
     ],
-    max_output_tokens: 1200,
+    max_output_tokens: 700,
   });
 
   return response.output_text?.trim() || "Je n’ai pas pu générer de réponse exploitable.";
